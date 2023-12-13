@@ -1,24 +1,31 @@
-'use server'
+export const dynamic = 'force-dynamic'
 
 import { cookies } from 'next/headers';
-import { NextRequest, NextResponse } from "next/server";
+import Server, { NextResponse } from 'next/server';
+import { NextRequest } from "next/server";
 import { steam } from "@/lib/steam";
 import { Encryption } from '@/lib/encryption';
 
 const encryption = new Encryption();
 
-export async function GET(request: NextRequest, response: NextRequest) {
-    const user  = await steam.authenticate(request);
-    if ( user) console.log(true)
-    const month = Date.now() + 24 * 60 * 60 * 1000 * 30;
-    let encrypted = encryption.encrypt(JSON.stringify(user._json));
-    if (encrypted) cookies().set('steam', encrypted, { expires: month });
-    
-    let toRedirect: string = process.env.URL || "/";
-    return Response.redirect(toRedirect);
+export async function GET(request: NextRequest, response: NextResponse) {
 
-    // console.log('test')
-    // const user  = await steam.authenticate(request);
-    // request.cookies.set('client', JSON.stringify(user._json))
-    // return Response.redirect('http://localhost:3000');
+    let toRedirect: string
+    toRedirect = process.env.URL || "/";
+
+    try {
+        const user  = await steam.authenticate(request);
+        const month = 24 * 60 * 60 * 1000 * 30;
+        let encrypted = encryption.encrypt(JSON.stringify(user._json));
+        if (encrypted) cookies().set('steam', encrypted, { expires: month });
+        return NextResponse.redirect(toRedirect, {
+            headers: {
+                'Set-Cookie': `steam=${encrypted}; path=/; Max-Age=${month};`
+            }
+        });
+
+        return response;
+    } catch(e) {
+        return Server.NextResponse.redirect(process.env.URL || "/");
+    }
 }
